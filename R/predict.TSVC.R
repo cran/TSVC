@@ -1,0 +1,81 @@
+#' Prediction from Varying Coefficient Trees
+#' 
+#' @description 
+#' Obtains predictions from a fitted TSVC object. 
+#' 
+#' @param object a fitted object of class \code{\link[TSVC]{TSVC}}.
+#' @param X_new optionally, data frame of class \code{\link{data.frame}} which contains the variables with which to predict. If \code{NULL}, the fitted 
+#' linear predictors are use. 
+#' @param ... further arguments passed to \code{\link[stats]{predict.glm}}. 
+#' 
+#' @details 
+#' \code{predict.TSVC} is a wrapper function of \code{predict.glm}, which obtains predictions for objects of class \code{\link[stats]{glm}}. Further
+#' arguments can be passed to \code{predict.glm} via the '...'-argument. 
+#' 
+#' @author Moritz Berger <moritz.berger@imbie.uni-bonn.de> \cr \url{http://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+#' 
+#' @references 
+#' Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing. Under review. 
+#' 
+#' @seealso \code{\link[TSVC]{TSVC}}, \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{summary.TSVC}}
+#' 
+#' @examples 
+#' # Swiss Labour Market 
+#' library(AER)
+#' data("SwissLabor")
+#' 
+#' # recode factors
+#' sl <- SwissLabor
+#' sl$participation <- as.numeric(sl$participation)-1
+#' sl$foreign       <- as.numeric(sl$foreign)-1
+#' 
+#' \dontshow{
+#' X_new0 <- data.frame("foreign"=c(0,1), "oldkids"=c(1,2))
+#' fit0   <- TSVC(participation~foreign+oldkids, data=sl, family=binomial(link="logit"), 
+#'                nperm=50, trace=TRUE)
+#' predict(fit0, X_new0, type="response")
+#' }
+#' \donttest{
+#' X_new <- data.frame("income"=c(10,12), "age"=c(4.5,5.8))
+#' fit1  <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"), 
+#'               nperm=300, trace=TRUE)
+#' predict(fit1, X_new, type="response")
+#' }
+#' 
+#' 
+#' @method predict TSVC 
+#' @export
+#' @importFrom stats predict 
+
+predict.TSVC  <- function(object, 
+                          X_new=NULL, 
+                          ...){
+
+  DM_kov <- object$X
+  nvar   <- ncol(DM_kov)
+  
+  if(is.null(X_new)){
+    X_new <- DM_kov
+  }
+  
+  if(!is.null(names(DM_kov))){
+    var_names <- names(DM_kov)
+  } else{
+    var_names <- paste0("x",1:nvar)
+  }
+  ordered_values <- lapply(DM_kov,ord_values)
+  n_levels       <- sapply(ordered_values,length)
+  thresholds     <- lapply(ordered_values,thresh)
+  var_list       <- vars(DM_kov)
+  
+  design_upper <- sapply(1:nvar,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names))
+  design_upper <- do.call(cbind,design_upper)
+  design_lower <- sapply(1:nvar,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names, upper=FALSE))
+  design_lower <- do.call(cbind,design_lower)
+  
+  X_new <- as.data.frame(cbind(X_new, design_upper, design_lower))[,all.vars(formula(object$model))[-1]]
+  
+  pred  <- predict(object$model, newdata=X_new, ...)
+  
+  return(pred)
+}
