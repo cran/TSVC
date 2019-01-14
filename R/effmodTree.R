@@ -5,11 +5,19 @@ effmodTree  <- function(y,
                         nperm, 
                         effmod,
                         notmod, 
-                        trace){
+                        exclude,
+                        smooth,
+                        split_intercept,
+                        trace, 
+                        ...){
   
   n    <- length(y)
   nvar <- ncol(DM_kov)
   
+  mc   <- as.list(match.call(expand.dots=TRUE))
+  mcs  <- paste0(names(mc),"=",mc)[-c(1:12)]
+  mcs  <- ifelse(length(mcs)==0, "", paste0(",", paste0(mcs, collapse=",")))
+    
   if(!is.null(names(DM_kov))){
     var_names <- names(DM_kov)
   } else{
@@ -54,8 +62,22 @@ effmodTree  <- function(y,
       var_list[[notmod[[i]][1]]] <- var_list[[notmod[[i]][1]]][!(var_list[[notmod[[i]][1]]]==var_names[notmod[[i]][2]])]
     }
   }
+  # delete intercept
+  if(split_intercept){
+    if(is.null(effmod)){
+      for(i in 1:(nvar-1)){
+        var_list[[i]] <- var_list[[i]][-length(var_list[[i]])]
+      }
+    }
+  }
   
   params[[1]]      <- as.list(var_names)
+  if(!is.null(exclude)){
+    for(e in exclude){
+      params[[1]][[e]] <- params[[1]][[e]][-1]
+    }
+  }
+  
   which_obs[[1]]   <- replicate(nvar,matrix(1:n,nrow=1),simplify=FALSE)
   vars_evtl[[1]]   <- lapply(1:nvar,function(j) length(var_list[[j]]))
   splits_evtl[[1]] <- lapply(1:nvar,function(j) {
@@ -64,13 +86,31 @@ effmodTree  <- function(y,
                         return(ret)})
   numbers[[1]]     <- replicate(nvar,1,simplify=FALSE)
   
-  help0  <- paste0(var_names,collapse="+")
-  form0  <- formula(paste("y~",help0))
-  dat0   <- data.frame(y,DM_kov)
-  mod0   <- mod_potential[[1]] <- glm(form0,family=family,data=dat0)
+  help0  <- paste0(if(is.null(exclude)){var_names}else{var_names[-exclude]},collapse="+")
+  form0  <- formula(paste("y~",help0,ifelse(split_intercept,"-1","")))
+  dat0   <- as.data.frame(cbind(y,DM_kov))
+  if(is.null(smooth)){
+    mod0   <- mod_potential[[1]] <- glm(form0,family=family,data=dat0)
+  } else{
+    help00 <- paste0("s(", var_names[smooth], ", bs='ps'", mcs, ")", collapse="+")
+    form0  <- formula(paste("y~", help0, "+", help00,ifelse(split_intercept,"-1","")))
+    mod0   <- mod_potential[[1]] <- gam(form0,family=family,data=dat0)
+  }
+  start <- predict(mod0)
   
   design_upper <- lapply(1:nvar,function(j) designlist(DM_kov,var_list[[j]],j,thresholds,var_names))
   design_lower <- lapply(1:nvar,function(j) designlist(DM_kov,var_list[[j]],j,thresholds,var_names, upper=FALSE))
+  
+  # delete binary vars from intercept (until first split in intercept)
+  int_del <- c() 
+  if(split_intercept){
+    for(i in 1:(nvar-1)){
+      if(n_levels[i]==2 && !(i%in%exclude)){
+        int_del <- c(int_del,var_names[i])
+      }
+    }
+  }
+  split_in_int  <- FALSE
   
   sig      <- TRUE
   anysplit <- TRUE
@@ -83,8 +123,10 @@ effmodTree  <- function(y,
               ret <- lapply(var_list[[var]],function(i) {
                       n_knots   <- length(params[[count]][[var]])
                       deviances <- matrix(rep(0,n_s[i]*n_knots),ncol=n_knots)
-                      for(kn in 1:n_knots){
-                        deviances[,kn] <- allmodels(var,i,kn,count,design_lower,design_upper,splits_evtl,params,dat0,mod0,n_s,family)
+                      if(!(var==nvar & i%in%int_del & !split_in_int)){ 
+                        for(kn in 1:n_knots){
+                          deviances[,kn] <- allmodels(var,i,kn,count,design_lower,design_upper,splits_evtl,params,dat0,mod0,n_s,var_names,smooth,split_intercept,family,start,mcs)
+                        }
                       }
                       return(deviances)
               })
@@ -120,7 +162,7 @@ effmodTree  <- function(y,
     
     for(perm in 1:nperm){
       dev[perm] <- one_permutation(variable,split_variable,knoten,count,design_lower,design_upper,
-                                   DM_kov,thresholds,which_obs,splits_evtl,params,dat0,mod0,n_s,family)
+                                   DM_kov,thresholds,which_obs,splits_evtl,params,dat0,mod0,n_s,var_names,smooth,split_intercept,family,start,mcs)
       if(trace){
         cat(".")
       }
@@ -138,8 +180,9 @@ effmodTree  <- function(y,
     if(proof){
       
       # fit new model 
-      mod0  <- mod_potential[[count+1]] <- one_model(variable,split_variable,knoten,count,split,design_lower,design_upper,params,dat0,family)
+      mod0  <- mod_potential[[count+1]] <- one_model(variable,split_variable,knoten,count,split,design_lower,design_upper,params,dat0,var_names,smooth,split_intercept,family,start,mcs)
       dat0  <- data.frame(dat0,design_lower[[variable]][[split_variable]][,split,drop=FALSE],design_upper[[variable]][[split_variable]][,split,drop=FALSE])
+      start <- predict(mod0)
       
       # adjust knoten 
       if(level>1){
@@ -192,6 +235,13 @@ effmodTree  <- function(y,
         vars_evtl[[count+1]][[variable]][knoten+1] <- vars_evtl[[count+1]][[variable]][knoten+1]-1 
       }
       
+      # add binary variables 
+      if(!split_in_int){
+        if(variable==nvar){
+          split_in_int <- TRUE
+        }
+      }
+      
       # passe which_obs an 
       which_obs[[count+1]]                                   <- which_obs[[count]]
       which_obs[[count+1]][[variable]]                       <- matrix(0,nrow=n_knots,ncol=n)
@@ -235,14 +285,27 @@ effmodTree  <- function(y,
     not_inmodel   <- 1:nvar 
   }
 
+  # delete intercept
+  if(split_intercept){
+    not_inmodel <- not_inmodel[!not_inmodel==nvar]
+  }
+  
   # permutations test for linear terms 
   not_sig <- logical(length(not_inmodel))
   done    <- FALSE
-  toTest  <- not_inmodel
+  if(is.null(exclude)){
+    toTest <- not_inmodel
+  } else{
+    if(any(exclude%in%not_inmodel)){
+      toTest <- not_inmodel[!(not_inmodel%in%exclude)]
+    } else{
+      toTest <- not_inmodel
+    }
+  }
   h1      <- 1:nvar
   
   while(!done & length(toTest)>0){
-    ps <- one_step(toTest,h1,var_names,params_opt,dat0,family,nperm)
+    ps <- one_step(toTest,h1,var_names,params_opt,dat0,smooth,split_intercept,family,nperm,mcs)
     if(max(ps)<alpha){
       done <- TRUE
     } else{
@@ -262,8 +325,13 @@ effmodTree  <- function(y,
     } else{
       h3 <- 1 
     }
-    h4 <- formula(paste("y~",h3))
-    mod_opt <- glm(h4,family=family,data=dat0)
+    h4 <- formula(paste("y~",h3,ifelse(split_intercept,"-1","")))
+    if(is.null(smooth)){
+      mod_opt <- glm(h4,family=family,data=dat0)
+    } else{
+      h4  <- formula(paste("y~", h3, "+", help00,ifelse(split_intercept,"-1","")))
+      mod_opt <- gam(h4,family=family,data=dat0)
+    }
     beta_hat <- coef(mod_opt)
     noeffmod_vars <- noeffmod_vars[!(noeffmod_vars%in%not_inmodel[not_sig])]
   } else{
@@ -272,14 +340,10 @@ effmodTree  <- function(y,
   
   # save results 
   if(count>1){
-      beta_effmod          <- lapply(effmod_vars,function(j) beta_hat[params_opt[[j]]])
-      names(beta_effmod)   <- var_names[effmod_vars]
-    if(length(noeffmod_vars)>0){
-      beta_noeffmod        <- c(beta_hat[1],unlist(sapply(noeffmod_vars, function(j)  beta_hat[params_opt[[j]]])))
-      names(beta_noeffmod) <- c("(Intercept)",var_names[noeffmod_vars])
-    } else{
-      beta_noeffmod <- beta_hat[1]
-    }
+    beta_effmod          <- lapply(effmod_vars,function(j) beta_hat[params_opt[[j]]])
+    names(beta_effmod)   <- var_names[effmod_vars]
+    param_names   <- unlist(lapply(effmod_vars, function(j) params_opt[[j]]))
+    beta_noeffmod <- beta_hat[!names(beta_hat)%in%param_names]
   } else{
     beta_noeffmod <- beta_hat
     beta_effmod   <- c()
@@ -291,7 +355,8 @@ effmodTree  <- function(y,
                      "splits"=splits,
                      "pvalues"=pvalues,
                      "devs"=devs,
-                     "crits"=crits))
+                     "crits"=crits,
+                     "vl"=var_list))
   
   return(to_return)
   

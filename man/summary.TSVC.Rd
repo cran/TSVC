@@ -36,21 +36,17 @@ sl <- SwissLabor
 sl$participation <- as.numeric(sl$participation)-1
 sl$foreign       <- as.numeric(sl$foreign)-1
 
-\dontshow{
-fit0 <- TSVC(participation~foreign+oldkids, data=sl, family=binomial(link="logit"), 
-             nperm=50, trace=TRUE)
-summary(fit0)
-}
-\donttest{
+\dontrun{
 fit1 <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"), 
-             nperm=300, trace=TRUE)
+             nperm=1000, trace=TRUE)
 summary(fit1)
 }
 
 
 }
 \references{
-Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing. Under review.
+Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing, published online,
+https://doi.org/10.1007/s11222-018-9804-8.
 }
 \seealso{
 \code{\link[TSVC]{TSVC}}, \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{predict.TSVC}}

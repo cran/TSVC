@@ -1,7 +1,9 @@
 info_summary <-
-  function(splits,
+  function(object,
            variable){
     
+    splits <- object$splits
+    coefficients <- object$coefficients 
     vars_varying  <- unique(splits[,"variable"])
     
     type <- ifelse(variable %in% vars_varying,"varying","constant")
@@ -10,8 +12,14 @@ info_summary <-
         nos    <- nrow(splits[splits[,"variable"]==variable,])
     } else{
         effmod <- nos <- "---"
+        var_name <- names(object$X)[variable]
+        if(!(var_name %in% names(coefficients$beta_constant))){
+          type <- "---"
+        }
+        if(class(object$model)[1] == "gam" && var_name %in% sapply(object$model$smooth,"[[","vn")){
+          type <- "smooth"
+        }
     }
-    
     
     output <- list("variable"=variable,
                    "type"=type,
@@ -21,7 +29,7 @@ info_summary <-
   }
 
 infos_summary <-
-  function(splits,
+  function(object,
            variables){
     
     nvar   <- length(variables)
@@ -32,7 +40,7 @@ infos_summary <-
                          stringsAsFactors=FALSE)
     
     for(i in 1:nvar){
-      info <- info_summary(splits,variables[i])
+      info <- info_summary(object,variables[i])
       output[i,"variable"]        <- info$variable
       output[i,"type"]            <- info$type
       output[i,"effect_modifier"] <- info$effmod

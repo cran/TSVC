@@ -15,7 +15,8 @@
 #' @author Moritz Berger <moritz.berger@imbie.uni-bonn.de> \cr \url{http://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
 #' 
 #' @references 
-#' Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing. Under review. 
+#' Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing, published online,
+#' https://doi.org/10.1007/s11222-018-9804-8. 
 #' 
 #' @seealso \code{\link[TSVC]{TSVC}}, \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{summary.TSVC}}
 #' 
@@ -29,16 +30,11 @@
 #' sl$participation <- as.numeric(sl$participation)-1
 #' sl$foreign       <- as.numeric(sl$foreign)-1
 #' 
-#' \dontshow{
-#' X_new0 <- data.frame("foreign"=c(0,1), "oldkids"=c(1,2))
-#' fit0   <- TSVC(participation~foreign+oldkids, data=sl, family=binomial(link="logit"), 
-#'                nperm=50, trace=TRUE)
-#' predict(fit0, X_new0, type="response")
-#' }
-#' \donttest{
 #' X_new <- data.frame("income"=c(10,12), "age"=c(4.5,5.8))
-#' fit1  <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"), 
-#'               nperm=300, trace=TRUE)
+#' 
+#' \dontrun{
+#' fit1 <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"), 
+#'              nperm=1000, trace=TRUE)
 #' predict(fit1, X_new, type="response")
 #' }
 #' 
@@ -55,27 +51,42 @@ predict.TSVC  <- function(object,
   nvar   <- ncol(DM_kov)
   
   if(is.null(X_new)){
-    X_new <- DM_kov
-  }
-  
-  if(!is.null(names(DM_kov))){
-    var_names <- names(DM_kov)
+    pred <- predict(object$model, ...)
   } else{
-    var_names <- paste0("x",1:nvar)
+    
+    if("Intercept"%in%names(DM_kov)){
+      X_new <- as.data.frame(cbind(X_new,"Intercept"=1))
+    }
+    for(i in 1:ncol(X_new)){
+      if(is.factor(X_new[,i])){
+        if(nlevels(X_new[,i])==2){
+          X_new[,i] <- as.numeric(X_new[,i])-1
+        } 
+      }
+    }
+    
+    if(!is.null(names(DM_kov))){
+      var_names <- names(DM_kov)
+    } else{
+      var_names <- paste0("x",1:nvar)
+    }
+    ordered_values <- lapply(DM_kov,ord_values)
+    n_levels       <- sapply(ordered_values,length)
+    thresholds     <- lapply(ordered_values,thresh)
+    var_list       <- attributes(object)$vl
+    X_new          <- X_new[,var_names]
+    
+    to_build <- c(1:nvar)[sapply(1:nvar, function(j) length(var_list[[j]])>0)]
+    
+    design_upper <- sapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names))
+    design_upper <- do.call(cbind,design_upper)
+    design_lower <- sapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names, upper=FALSE))
+    design_lower <- do.call(cbind,design_lower)
+    
+    X_new <- as.data.frame(cbind(X_new, design_upper, design_lower))[,all.vars(formula(object$model))[-1]]
+    
+    pred  <- predict(object$model, newdata=X_new, ...)
   }
-  ordered_values <- lapply(DM_kov,ord_values)
-  n_levels       <- sapply(ordered_values,length)
-  thresholds     <- lapply(ordered_values,thresh)
-  var_list       <- vars(DM_kov)
-  
-  design_upper <- sapply(1:nvar,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names))
-  design_upper <- do.call(cbind,design_upper)
-  design_lower <- sapply(1:nvar,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names, upper=FALSE))
-  design_lower <- do.call(cbind,design_lower)
-  
-  X_new <- as.data.frame(cbind(X_new, design_upper, design_lower))[,all.vars(formula(object$model))[-1]]
-  
-  pred  <- predict(object$model, newdata=X_new, ...)
   
   return(pred)
 }
