@@ -110,7 +110,6 @@
 #' 
 #' }
 #' 
-#' @exportClass TSVC
 #' @export
 #' @importFrom stats coef deviance formula gaussian glm quantile 
 #' @importFrom utils combn 

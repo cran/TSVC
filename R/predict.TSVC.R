@@ -83,7 +83,7 @@ predict.TSVC  <- function(object,
     design_lower <- sapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names, upper=FALSE))
     design_lower <- do.call(cbind,design_lower)
     
-    X_new <- as.data.frame(cbind(X_new, design_upper, design_lower))[,all.vars(formula(object$model))[-1]]
+    X_new <- as.data.frame(cbind(X_new, design_upper, design_lower))[,all.vars(formula(object$model))[-1], drop=FALSE]
     
     pred  <- predict(object$model, newdata=X_new, ...)
   }

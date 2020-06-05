@@ -42,7 +42,6 @@
 #' 
 #' 
 #' @method summary TSVC
-#' @exportClass summary.TSVC 
 #' @export
 
 summary.TSVC <-
