@@ -5,9 +5,24 @@
 \alias{print.TSVC}
 \title{Tree-Structured Modelling of Varying Coefficients}
 \usage{
-TSVC(formula, data, family = gaussian, alpha = 0.05, nperm = 1000,
-  effmod = NULL, notmod = NULL, only_effmod = NULL, smooth = NULL,
-  split_intercept = FALSE, trace = FALSE, ...)
+TSVC(
+  formula,
+  data,
+  family = gaussian,
+  alpha = 0.05,
+  nperm = 1000,
+  nodesize_min = 5,
+  bucket_min = 1,
+  depth_max = NULL,
+  perm_test = TRUE,
+  effmod = NULL,
+  notmod = NULL,
+  only_effmod = NULL,
+  smooth = NULL,
+  split_intercept = FALSE,
+  trace = FALSE,
+  ...
+)
 
 \method{print}{TSVC}(x, ...)
 }
@@ -23,6 +38,14 @@ See \code{\link{family}} for details of family functions.}
 \item{alpha}{significance level \eqn{alpha} for the permutation tests.}
 
 \item{nperm}{number of permutations used for the permutation tests.}
+
+\item{nodesize_min}{minimum number of observations that must exist in a node in order for a split to be attempted.}
+
+\item{bucket_min}{the minimum number of observations in any terminal node.}
+
+\item{depth_max}{maximum depth of any node in each tree, with the root node counted as depth 0. If \code{NULL} (default), the size of the trees is not restricted.}
+
+\item{perm_test}{if \code{FALSE}, no permutation tests are performed, but each tree is grown until the minimum node size constraint is reached.}
 
 \item{effmod}{optional vector of covariates that serve as effect modifier. If \code{NULL} (default), all covariates are considered as potential effect modifiers.}
 
@@ -48,11 +71,12 @@ Object of class \code{"TSVC"}. An object of class \code{"TSVC"} is a list contai
 \item{splits}{matrix with detailed information about all executed splits during the fitting process.}
 \item{coefficients}{list of estimated coefficients for covariates with and without varying coefficients (including a non-varying intercept).}
 \item{pvalues}{p-values of each permuation test during the fitting process.}
+\item{pvalues_linear}{p-values of the permutation tests on the linear effects in the last step of the algorithm.}
 \item{devs}{maximal value statistics \eqn{T_m} of the selected effect modifier in each iteration during the fitting process.}
 \item{crit}{critical values of each permutation test during the fitting process.}
 \item{y}{response vector.}
 \item{X}{matrix of all the variables (covariates and effect modifiers) for model fitting.}
-\item{model}{internaly fitted model in the last iteration of class \code{\link{glm}} or \code{\link[mgcv]{gam}}.}
+\item{model}{internally fitted model in the last iteration of class \code{\link{glm}} or \code{\link[mgcv]{gam}}.}
 }
 \description{
 A function to fit tree-structured varying coefficient (TSVC) models. By recursive splitting the method allows to simultaneously detect covariates 
@@ -115,13 +139,21 @@ print(fit4)
 fit5 <- TSVC(participation~income+age+foreign, data=sl, family=binomial(link="logit"),
              nperm=300, trace=TRUE, smooth="age")                     
 print(fit5)
-class(fit5$model) # gam                     
+class(fit5$model) # gam      
+
+# In fit6, the intercept is allowed to be modified by 'age' and 'income', but the two variables are 
+# not included in the predictor of the model. Here, no permutation tests are performed, but the 
+# tree is pruned by a minimum node size constraint. 
+fit6 <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"),
+             perm_test=FALSE, nodesize_min=100, bucket_min=100, trace=TRUE, split_intercept=TRUE,
+             effmod=c("income","age"), only_effmod = c("income", "age"))   
+print(fit6)                          
 
 }
 
 }
 \references{
-Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing, published online,
+Berger, M., G. Tutz and M. Schmid (2019). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing 29, 217-229,
 https://doi.org/10.1007/s11222-018-9804-8.
 
 Hastie, T. and R. Tibshirani (1993). Varying-coefficient models. Journal of the Royal Statistical Society B 55, 757-796.
@@ -133,5 +165,5 @@ and Graphical Statistics 15(3), 651-674.
 \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{predict.TSVC}}, \code{\link[TSVC]{summary.TSVC}}
 }
 \author{
-Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{http://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
 }

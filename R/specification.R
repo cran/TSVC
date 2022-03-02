@@ -1,17 +1,17 @@
 specification <- function(formula, data, effmod, notmod, only_effmod, smooth, split_intercept){
   
-  formula <- paste(formula)
+  names_all <- all.vars(formula)
   
   ### y ###
-  name_y  <- formula[2]
+  name_y  <- names_all[1]
   y       <- data[, name_y]
   
   ### DM_kov ### 
-  x      <- gsub(" ","",formula[3])
-  name_x <- unlist(strsplit(x,"\\+"))
+  name_x <- names_all[-1]
   DM_kov <- data[, name_x, drop=FALSE]
   if(split_intercept){
     DM_kov <- as.data.frame(cbind(DM_kov, "Intercept"=1))
+    name_x <- c(name_x, "Intercept")
   }
   
   if(any(sapply(1:ncol(DM_kov),function(j) class(DM_kov[,j]))=="character")){

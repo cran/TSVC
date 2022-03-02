@@ -5,6 +5,10 @@ TSVC.default <- function(formula,
                          family=gaussian,
                          alpha=0.05, 
                          nperm=1000, 
+                         nodesize_min=5, 
+                         bucket_min=1,
+                         depth_max=NULL,
+                         perm_test=TRUE,
                          effmod=NULL,
                          notmod=NULL, 
                          only_effmod=NULL,
@@ -41,7 +45,7 @@ TSVC.default <- function(formula,
   smooth <- comp$smooth
   
   # model fit 
-  output <- effmodTree(y, DM_kov, family, alpha, nperm, effmod, notmod, exclude, smooth, split_intercept, trace, ...)
+  output <- effmodTree(y, DM_kov, family, alpha, nperm, nodesize_min, bucket_min, depth_max, perm_test, effmod, notmod, exclude, smooth, split_intercept, trace, ...)
   coefficients <- list("beta_constant"= output$beta_noeffmod,
                        "beta_varying" = output$beta_effmod)
   
@@ -49,6 +53,7 @@ TSVC.default <- function(formula,
   to_return <- list("splits"=output$splits,
                     "coefficients"=coefficients,
                     "pvalues"=output$pvalues,
+                    "pvalues_linear"=output$pvalues_linear,
                     "devs"=output$devs,
                     "crits"=output$crits,
                     "y"=y,

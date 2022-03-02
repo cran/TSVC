@@ -12,10 +12,10 @@
 #' \code{predict.TSVC} is a wrapper function of \code{predict.glm}, which obtains predictions for objects of class \code{\link[stats]{glm}}. Further
 #' arguments can be passed to \code{predict.glm} via the '...'-argument. 
 #' 
-#' @author Moritz Berger <moritz.berger@imbie.uni-bonn.de> \cr \url{http://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+#' @author Moritz Berger <moritz.berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
 #' 
 #' @references 
-#' Berger, M., G. Tutz and M. Schmid (2018). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing, published online,
+#' Berger, M., G. Tutz and M. Schmid (2019). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing 29, 217-229,
 #' https://doi.org/10.1007/s11222-018-9804-8. 
 #' 
 #' @seealso \code{\link[TSVC]{TSVC}}, \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{summary.TSVC}}
@@ -78,9 +78,11 @@ predict.TSVC  <- function(object,
     
     to_build <- c(1:nvar)[sapply(1:nvar, function(j) length(var_list[[j]])>0)]
     
-    design_upper <- sapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names))
+    design_upper <- lapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names))
+    design_upper <- lapply(1:length(design_upper), function(j) do.call(cbind, design_upper[[j]]))
     design_upper <- do.call(cbind,design_upper)
-    design_lower <- sapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names, upper=FALSE))
+    design_lower <- lapply(to_build,function(j) designlist(X_new,var_list[[j]],j,thresholds,var_names, upper=FALSE))
+    design_lower <- lapply(1:length(design_lower), function(j) do.call(cbind, design_lower[[j]]))
     design_lower <- do.call(cbind,design_lower)
     
     X_new <- as.data.frame(cbind(X_new, design_upper, design_lower))[,all.vars(formula(object$model))[-1], drop=FALSE]

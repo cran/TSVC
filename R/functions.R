@@ -53,6 +53,9 @@ design <- function(x,thresholds,upper){
 designlist <- function(X,vars,label,thresholds,var_names,upper=TRUE){
   ret <- lapply(vars, function(j) {
                   ret <- design(X[,j],thresholds[[j]],upper)
+                  if(!is.matrix(ret)){
+                    ret <- t(as.matrix(ret))
+                  }
                   colnames(ret) <- paste0("s",which(var_names==j),1:length(thresholds[[j]]),ifelse(upper,"_u","_l"),label)
                   return(ret)})
   names(ret) <- vars 
@@ -85,6 +88,7 @@ one_model <- function(var,split_var,kn,count,j,design_lower,design_upper,params,
     help5  <- formula(paste("y~", help4, "+", help00, ifelse(split_intercept,"-1","")))
     mod    <- gam(help5,family=family,data=dat,etastart=start)
   }
+  attributes(mod)$formula_orig <- help5
   return(mod)
   
 }
@@ -183,4 +187,41 @@ one_step <- function(vars,var_seq,var_names,params_opt,dat,smooth,split_intercep
   
   return(pvalues)
 }
+
+# functions to fix names 
+check_names <- function(model, params){
+  
+  params_c  <- unlist(params)
+  names_mod <- names(coef(model))
+  params_split <- strsplit(params_c,":")
+  g1_c         <- which(sapply(params_split,length)>1)
+  params_split <- params_split[g1_c]
+  params_c     <- params_c[g1_c]
+  names_split  <- strsplit(names_mod,":")
+  g1_mod       <- which(sapply(names_split,length)>1)
+  names_split  <- names_split[g1_mod]
+  names_mod    <- names_mod[g1_mod]
+  if(length(params_c)>0){
+    if(!all(params_c %in% names_mod)){
+      for(k in 1:length(params_split)){
+        found <- FALSE
+        kk   <- 0
+        while(!found){
+          kk <- kk+1
+          found <- all(params_split[[k]] %in% names_split[[kk]])
+        } 
+        names(model$coefficients)[kk] <- params_c[k] 
+      }
+    }
+  }
+  return(model)
+}
+
+check_names_list <- function(model_list, params){
+  for(j in 1:length(model_list)){
+    model_list[[j]] <- check_names(model_list[[j]],params[[j]])
+  }
+  return(model_list)
+}
+
 
