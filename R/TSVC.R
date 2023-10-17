@@ -15,7 +15,9 @@
 #' @param nodesize_min minimum number of observations that must exist in a node in order for a split to be attempted. 
 #' @param bucket_min the minimum number of observations in any terminal node. 
 #' @param depth_max maximum depth of any node in each tree, with the root node counted as depth 0. If \code{NULL} (default), the size of the trees is not restricted.
+#' @param splits_max maximum number of splits performed. If \code{NULL} (default), the number of splits is not restricted.
 #' @param perm_test if \code{FALSE}, no permutation tests are performed, but each tree is grown until the minimum node size constraint is reached.
+#' @param test_linear should linear effects that were not modified during iteration tested for significance? 
 #' @param effmod optional vector of covariates that serve as effect modifier. If \code{NULL} (default), all covariates are considered as potential effect modifiers. 
 #' @param notmod optional list of class \code{\link{list}} containing pairs of covariate/effect modifier that are not considered as candidates for splitting during iteration.
 #' If \code{NULL} (default), all combinations of covariates and potential effect modifiers are considered for splitting. 
@@ -23,6 +25,7 @@
 #' are allowed to be modified. 
 #' @param smooth optional vector of covariates with a smooth effect on the response. The (smooth) effects fo these variables are not allowed to be modified.
 #' @param split_intercept if \code{TRUE}, the intercept is allowed to be modified by the covariates. If \code{FALSE} (default), the intercept is set constant.  
+#' @param sb_slope optional vector of covariates that are allowed to be modified by itself. Such an effect corresponds to a structural break in the slope. 
 #' @param trace if \code{TRUE}, information about the estimation progress is printed. 
 #' @param x object of class \code{TSVC}.
 #' @param ... further arguments passed to or from other methods. 
@@ -51,10 +54,12 @@
 #' \item{crit}{critical values of each permutation test during the fitting process.}
 #' \item{y}{response vector.}
 #' \item{X}{matrix of all the variables (covariates and effect modifiers) for model fitting.}
+#' \item{sb}{variables for which a structural break in the slope was allowed.}
 #' \item{model}{internally fitted model in the last iteration of class \code{\link{glm}} or \code{\link[mgcv]{gam}}.}
+#' \item{all_models}{list of internally fitted models of class \code{\link{glm}} or \code{\link[mgcv]{gam}}.}
 #' 
 #' @author 
-#' Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+#' Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/people/dr-moritz-berger/}
 #' 
 #' @references 
 #' Berger, M., G. Tutz and M. Schmid (2019). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing 29, 217-229,
@@ -137,12 +142,15 @@ TSVC        <- function(formula,
                         nodesize_min=5,
                         bucket_min=1,
                         depth_max=NULL,
+                        splits_max=NULL,
                         perm_test=TRUE,
+                        test_linear=TRUE,
                         effmod=NULL,
                         notmod=NULL,
                         only_effmod=NULL,
                         smooth=NULL,
                         split_intercept=FALSE,
+                        sb_slope=NULL,
                         trace=FALSE,
                         ...){
   UseMethod("TSVC")

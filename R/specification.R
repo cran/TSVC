@@ -1,4 +1,4 @@
-specification <- function(formula, data, effmod, notmod, only_effmod, smooth, split_intercept){
+specification <- function(formula, data, effmod, notmod, only_effmod, smooth, split_intercept, sb_slope){
   
   names_all <- all.vars(formula)
   
@@ -19,6 +19,25 @@ specification <- function(formula, data, effmod, notmod, only_effmod, smooth, sp
   }
   if(any(sapply(1:ncol(DM_kov),function(j) class(DM_kov[,j]))=="logical")){
     stop("variable of class 'logical' is not suitable")
+  }
+  
+  if(!is.null(sb_slope)){
+    if(is.null(notmod)){
+      notmod <- list() 
+    }
+    if(is.null(effmod)){
+      effmod <- name_x
+    }
+    for(s in 1:length(sb_slope)){
+      svar <- paste0(sb_slope[s],"_em")
+      DM_kov[,svar] <- DM_kov[,sb_slope[s]]
+      name_x <- c(name_x, svar)
+      effmod <- c(effmod, svar)
+      only_effmod <- c(only_effmod, svar)
+      for(i in name_x[-c(which(name_x==sb_slope[s],which(name_x%in%smooth)))]){
+        notmod[[length(notmod)+1]] <- c(i,svar)
+      }
+    }
   }
   
   for(i in 1:ncol(DM_kov)){

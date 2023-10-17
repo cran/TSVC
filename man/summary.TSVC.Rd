@@ -52,5 +52,5 @@ https://doi.org/10.1007/s11222-018-9804-8.
 \code{\link[TSVC]{TSVC}}, \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{predict.TSVC}}
 }
 \author{
-Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/people/dr-moritz-berger/}
 }

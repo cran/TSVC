@@ -6,12 +6,15 @@ effmodTree  <- function(y,
                         nodesize_min,
                         bucket_min,
                         depth_max,
+                        splits_max,
                         perm_test,
+                        test_linear,
                         effmod,
                         notmod, 
                         exclude,
                         smooth,
                         split_intercept,
+                        sb_slope,
                         trace, 
                         ...){
   
@@ -25,7 +28,7 @@ effmodTree  <- function(y,
   }
   
   mc   <- as.list(match.call(expand.dots=TRUE))
-  mcs  <- paste0(names(mc),"=",mc)[-c(1:16)]
+  mcs  <- paste0(names(mc),"=",mc)[-c(1:19)]
   mcs  <- ifelse(length(mcs)==0, "", paste0(",", paste0(mcs, collapse=",")))
     
   if(!is.null(names(DM_kov))){
@@ -151,6 +154,9 @@ effmodTree  <- function(y,
   }
   anysplit <- !all(is.na(unlist(splits_evtl[[1]])))
   
+  if(!is.null(splits_max) && splits_max<count){
+    anysplit <- FALSE
+  }
   
   while(sig & anysplit){
     
@@ -324,6 +330,10 @@ effmodTree  <- function(y,
           # any split? 
           anysplit <- !all(is.na(unlist(splits_evtl[[count+1]])))
           
+          if(!is.null(splits_max) && splits_max==count){
+            anysplit <- FALSE
+          }
+          
           # add binary variables 
           if(!split_in_int){
             if(variable==nvar){
@@ -375,7 +385,7 @@ effmodTree  <- function(y,
     not_inmodel <- not_inmodel[!not_inmodel==nvar]
   }
   
-  if(perm_test){
+  if(test_linear){
     # permutations test for linear terms 
     not_sig <- logical(length(not_inmodel))
     done    <- FALSE
@@ -450,8 +460,12 @@ effmodTree  <- function(y,
     beta_noeffmod <- beta_hat
     beta_effmod   <- c()
   }
+  if(!exists("pvalues_linear")){
+    pvalues_linear <- NA
+  }
   
   to_return <- (list("model"=mod_opt,
+                     "all_models"=mod_potential,
                      "beta_noeffmod"=beta_noeffmod,
                      "beta_effmod"=beta_effmod,
                      "splits"=splits,

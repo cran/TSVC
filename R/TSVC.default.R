@@ -8,12 +8,15 @@ TSVC.default <- function(formula,
                          nodesize_min=5, 
                          bucket_min=1,
                          depth_max=NULL,
+                         splits_max=NULL,
                          perm_test=TRUE,
+                         test_linear=TRUE,
                          effmod=NULL,
                          notmod=NULL, 
                          only_effmod=NULL,
                          smooth=NULL,
                          split_intercept=FALSE,
+                         sb_slope=NULL,
                          trace=FALSE,
                          ...){
   
@@ -36,7 +39,7 @@ TSVC.default <- function(formula,
   }
   
   # predefinition 
-  comp   <- specification(formula, data, effmod, notmod, only_effmod, smooth, split_intercept)
+  comp   <- specification(formula, data, effmod, notmod, only_effmod, smooth, split_intercept, sb_slope)
   y      <- comp$y
   DM_kov <- comp$DM_kov
   effmod <- comp$effmod
@@ -45,7 +48,8 @@ TSVC.default <- function(formula,
   smooth <- comp$smooth
   
   # model fit 
-  output <- effmodTree(y, DM_kov, family, alpha, nperm, nodesize_min, bucket_min, depth_max, perm_test, effmod, notmod, exclude, smooth, split_intercept, trace, ...)
+  output <- effmodTree(y, DM_kov, family, alpha, nperm, nodesize_min, bucket_min, depth_max, splits_max, perm_test, test_linear, 
+                       effmod, notmod, exclude, smooth, split_intercept, sb_slope, trace, ...)
   coefficients <- list("beta_constant"= output$beta_noeffmod,
                        "beta_varying" = output$beta_effmod)
   
@@ -58,7 +62,9 @@ TSVC.default <- function(formula,
                     "crits"=output$crits,
                     "y"=y,
                     "X"=DM_kov,
+                    "sb"=sb_slope,
                     "model"=output$model,
+                    "all_models"=output$all_models,
                     "call"=match.call())
   
   class(to_return) <- "TSVC"

@@ -12,7 +12,7 @@
 #' \code{predict.TSVC} is a wrapper function of \code{predict.glm}, which obtains predictions for objects of class \code{\link[stats]{glm}}. Further
 #' arguments can be passed to \code{predict.glm} via the '...'-argument. 
 #' 
-#' @author Moritz Berger <moritz.berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+#' @author Moritz Berger <moritz.berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/people/dr-moritz-berger/}
 #' 
 #' @references 
 #' Berger, M., G. Tutz and M. Schmid (2019). Tree-Structured Modelling of Varying Coefficients. Statistics and Computing 29, 217-229,
@@ -48,6 +48,7 @@ predict.TSVC  <- function(object,
                           ...){
 
   DM_kov <- object$X
+  sb     <- object$sb
   nvar   <- ncol(DM_kov)
   
   if(is.null(X_new)){
@@ -57,6 +58,13 @@ predict.TSVC  <- function(object,
     if("Intercept"%in%names(DM_kov)){
       X_new <- as.data.frame(cbind(X_new,"Intercept"=1))
     }
+    if(!is.null(sb)){
+      for(s in 1:length(sb)){
+        svar <- paste0(sb[s],"_em")
+        X_new[,svar] <- X_new[,sb[s]]
+      }
+    }
+    
     for(i in 1:ncol(X_new)){
       if(is.factor(X_new[,i])){
         if(nlevels(X_new[,i])==2){

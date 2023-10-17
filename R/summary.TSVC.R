@@ -14,7 +14,7 @@
 #' \item{nosplits}{total number of executed splits during the fitting process.} 
 #' 
 #' @author 
-#' Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+#' Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/people/dr-moritz-berger/}
 #' 
 #' 
 #' @references 

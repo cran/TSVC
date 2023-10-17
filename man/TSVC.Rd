@@ -14,12 +14,15 @@ TSVC(
   nodesize_min = 5,
   bucket_min = 1,
   depth_max = NULL,
+  splits_max = NULL,
   perm_test = TRUE,
+  test_linear = TRUE,
   effmod = NULL,
   notmod = NULL,
   only_effmod = NULL,
   smooth = NULL,
   split_intercept = FALSE,
+  sb_slope = NULL,
   trace = FALSE,
   ...
 )
@@ -45,7 +48,11 @@ See \code{\link{family}} for details of family functions.}
 
 \item{depth_max}{maximum depth of any node in each tree, with the root node counted as depth 0. If \code{NULL} (default), the size of the trees is not restricted.}
 
+\item{splits_max}{maximum number of splits performed. If \code{NULL} (default), the number of splits is not restricted.}
+
 \item{perm_test}{if \code{FALSE}, no permutation tests are performed, but each tree is grown until the minimum node size constraint is reached.}
+
+\item{test_linear}{should linear effects that were not modified during iteration tested for significance?}
 
 \item{effmod}{optional vector of covariates that serve as effect modifier. If \code{NULL} (default), all covariates are considered as potential effect modifiers.}
 
@@ -58,6 +65,8 @@ are allowed to be modified.}
 \item{smooth}{optional vector of covariates with a smooth effect on the response. The (smooth) effects fo these variables are not allowed to be modified.}
 
 \item{split_intercept}{if \code{TRUE}, the intercept is allowed to be modified by the covariates. If \code{FALSE} (default), the intercept is set constant.}
+
+\item{sb_slope}{optional vector of covariates that are allowed to be modified by itself. Such an effect corresponds to a structural break in the slope.}
 
 \item{trace}{if \code{TRUE}, information about the estimation progress is printed.}
 
@@ -76,7 +85,9 @@ Object of class \code{"TSVC"}. An object of class \code{"TSVC"} is a list contai
 \item{crit}{critical values of each permutation test during the fitting process.}
 \item{y}{response vector.}
 \item{X}{matrix of all the variables (covariates and effect modifiers) for model fitting.}
+\item{sb}{variables for which a structural break in the slope was allowed.}
 \item{model}{internally fitted model in the last iteration of class \code{\link{glm}} or \code{\link[mgcv]{gam}}.}
+\item{all_models}{list of internally fitted models of class \code{\link{glm}} or \code{\link[mgcv]{gam}}.}
 }
 \description{
 A function to fit tree-structured varying coefficient (TSVC) models. By recursive splitting the method allows to simultaneously detect covariates 
@@ -165,5 +176,5 @@ and Graphical Statistics 15(3), 651-674.
 \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{predict.TSVC}}, \code{\link[TSVC]{summary.TSVC}}
 }
 \author{
-Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/personen/dr-moritz-berger/}
+Moritz Berger <Moritz.Berger@imbie.uni-bonn.de> \cr \url{https://www.imbie.uni-bonn.de/people/dr-moritz-berger/}
 }
