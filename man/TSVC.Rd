@@ -16,13 +16,16 @@ TSVC(
   depth_max = NULL,
   splits_max = NULL,
   perm_test = TRUE,
-  test_linear = TRUE,
+  test_linear = FALSE,
+  gpd_approx = FALSE,
   effmod = NULL,
   notmod = NULL,
   only_effmod = NULL,
   smooth = NULL,
   split_intercept = FALSE,
   sb_slope = NULL,
+  sb_slope_c = FALSE,
+  n_quantile = 20,
   trace = FALSE,
   ...
 )
@@ -54,6 +57,8 @@ See \code{\link{family}} for details of family functions.}
 
 \item{test_linear}{should linear effects that were not modified during iteration tested for significance?}
 
+\item{gpd_approx}{if \code{TRUE}, the p-value of the permutation test is approximated by a generalized Pareto distribution (Knijnenburg et al., 2009).}
+
 \item{effmod}{optional vector of covariates that serve as effect modifier. If \code{NULL} (default), all covariates are considered as potential effect modifiers.}
 
 \item{notmod}{optional list of class \code{\link{list}} containing pairs of covariate/effect modifier that are not considered as candidates for splitting during iteration.
@@ -67,6 +72,12 @@ are allowed to be modified.}
 \item{split_intercept}{if \code{TRUE}, the intercept is allowed to be modified by the covariates. If \code{FALSE} (default), the intercept is set constant.}
 
 \item{sb_slope}{optional vector of covariates that are allowed to be modified by itself. Such an effect corresponds to a structural break in the slope.}
+
+\item{sb_slope_c}{if \code{TRUE} the structural breaks in the covariates specified in \code{sb_slope} are forced to be without discontinuity. Need to be used with care 
+in a multivariable setting, where the covariates in \code{sb_slope} are also allowed to be modified by other effect modifiers.}
+
+\item{n_quantile}{the number of splits considered for numeric effect modifiers (with decimal values), determined by the corresponding 
+quantiles of the effect modifiers. Per default this is set to 20, which uses percentiles.}
 
 \item{trace}{if \code{TRUE}, information about the estimation progress is printed.}
 
@@ -170,7 +181,9 @@ https://doi.org/10.1007/s11222-018-9804-8.
 Hastie, T. and R. Tibshirani (1993). Varying-coefficient models. Journal of the Royal Statistical Society B 55, 757-796.
 
 Hothorn T., K. Hornik and A. Zeileis (2006). Unbiased recursive partitioning: A conditional inference framework. Journal of Computational 
-and Graphical Statistics 15(3), 651-674.
+and Graphical Statistics 15(3), 651-674. 
+
+Knijnenburg, T.A., L.F., Wessels, M.J. Reinders and I. Shmulevich (2009). Fewer permutations, more accurate P-values. Bioinformatics, 25, i161-i168.
 }
 \seealso{
 \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{predict.TSVC}}, \code{\link[TSVC]{summary.TSVC}}

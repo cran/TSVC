@@ -7,18 +7,37 @@
 \method{plot}{TSVC}(
   x,
   variable,
+  ellipse_a = 0.8,
+  ellipse_b = 0.2,
+  ellipse_x = 0,
+  ellipse_y = 0,
+  branch_adj = 0,
   cex.lines = 2,
   cex.branches = 1,
   cex.coefs = 1,
   cex.main = 1,
+  cex.numbers = 1,
+  draw_numbers = TRUE,
   title = NULL,
+  decimals = 3,
+  confint = NULL,
   ...
 )
 }
 \arguments{
-\item{x}{object of class \code{\link[TSVC]{TSVC}}.}
+\item{x}{a fitted object of class \code{\link[TSVC]{TSVC}}.}
 
 \item{variable}{name of the variable, for which the tree shall be plotted.}
+
+\item{ellipse_a}{controls width of ellipses containing coefficient estimates.}
+
+\item{ellipse_b}{controls height of ellipses containing coefficient estimates.}
+
+\item{ellipse_x}{controls location on x-axis of ellipses containing coefficient estimates.}
+
+\item{ellipse_y}{controls location on y-axis of ellipses containing coefficient estimates.}
+
+\item{branch_adj}{vertical adjustment of branch labels.}
 
 \item{cex.lines}{width of branches of the tree.}
 
@@ -28,7 +47,16 @@
 
 \item{cex.main}{size of the title of the tree.}
 
+\item{cex.numbers}{size of the internally used node number.}
+
+\item{draw_numbers}{if \code{true}, internally used node numbers are displayed.}
+
 \item{title}{optional title, which is addded to the tree; if \code{title=NULL} the title is the name of the variable in the data.}
+
+\item{decimals}{number of decimals of coefficient estimates. Per default the coefficient estimates are displayed with three decimals.}
+
+\item{confint}{optional fitted object of class \code{\link[TSVC]{confint.TSVC}} with confidence intervals to be plotted 
+in the terminal nodes of the tree; if \code{confint=NULL} (default) only the coefficient estimates will be plotted.}
 
 \item{...}{further arguments passed to or from other methods.}
 }
@@ -49,6 +77,12 @@ sl$foreign       <- as.numeric(sl$foreign)-1
 fit1 <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"), 
              nperm=1000, trace=TRUE)
 plot(fit1, "income")
+
+fit2 <- TSVC(participation~income+age, data=sl, family=binomial(link="logit"), 
+perm_test=FALSE, test_linear=FALSE, splits_max=3)
+set.seed(20012025)
+ci2  <- confint(fit2, bootstrap_n=500, alpha=0.05, trace=TRUE)
+plot(fit2, variable="income", confint=ci2, ellipse_y=0, draw_numbers=FALSE)
 }
 
 }

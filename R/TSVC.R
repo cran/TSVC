@@ -18,6 +18,7 @@
 #' @param splits_max maximum number of splits performed. If \code{NULL} (default), the number of splits is not restricted.
 #' @param perm_test if \code{FALSE}, no permutation tests are performed, but each tree is grown until the minimum node size constraint is reached.
 #' @param test_linear should linear effects that were not modified during iteration tested for significance? 
+#' @param gpd_approx if \code{TRUE}, the p-value of the permutation test is approximated by a generalized Pareto distribution (Knijnenburg et al., 2009).
 #' @param effmod optional vector of covariates that serve as effect modifier. If \code{NULL} (default), all covariates are considered as potential effect modifiers. 
 #' @param notmod optional list of class \code{\link{list}} containing pairs of covariate/effect modifier that are not considered as candidates for splitting during iteration.
 #' If \code{NULL} (default), all combinations of covariates and potential effect modifiers are considered for splitting. 
@@ -26,6 +27,10 @@
 #' @param smooth optional vector of covariates with a smooth effect on the response. The (smooth) effects fo these variables are not allowed to be modified.
 #' @param split_intercept if \code{TRUE}, the intercept is allowed to be modified by the covariates. If \code{FALSE} (default), the intercept is set constant.  
 #' @param sb_slope optional vector of covariates that are allowed to be modified by itself. Such an effect corresponds to a structural break in the slope. 
+#' @param sb_slope_c if \code{TRUE} the structural breaks in the covariates specified in \code{sb_slope} are forced to be without discontinuity. Need to be used with care 
+#' in a multivariable setting, where the covariates in \code{sb_slope} are also allowed to be modified by other effect modifiers. 
+#' @param n_quantile the number of splits considered for numeric effect modifiers (with decimal values), determined by the corresponding 
+#' quantiles of the effect modifiers. Per default this is set to 20, which uses percentiles. 
 #' @param trace if \code{TRUE}, information about the estimation progress is printed. 
 #' @param x object of class \code{TSVC}.
 #' @param ... further arguments passed to or from other methods. 
@@ -69,6 +74,8 @@
 #' 
 #' Hothorn T., K. Hornik and A. Zeileis (2006). Unbiased recursive partitioning: A conditional inference framework. Journal of Computational 
 #' and Graphical Statistics 15(3), 651-674. 
+#' 
+#' Knijnenburg, T.A., L.F., Wessels, M.J. Reinders and I. Shmulevich (2009). Fewer permutations, more accurate P-values. Bioinformatics, 25, i161-i168.
 #' 
 #' @seealso 
 #' \code{\link[TSVC]{plot.TSVC}}, \code{\link[TSVC]{predict.TSVC}}, \code{\link[TSVC]{summary.TSVC}}
@@ -132,6 +139,7 @@
 #' @importFrom stats coef deviance formula gaussian glm quantile 
 #' @importFrom utils combn 
 #' @importFrom mgcv gam 
+#' @importFrom VGAM vglm gpd pgpd qgpd
 #' 
 
 TSVC        <- function(formula, 
@@ -144,13 +152,16 @@ TSVC        <- function(formula,
                         depth_max=NULL,
                         splits_max=NULL,
                         perm_test=TRUE,
-                        test_linear=TRUE,
+                        test_linear=FALSE,
+                        gpd_approx=FALSE, 
                         effmod=NULL,
                         notmod=NULL,
                         only_effmod=NULL,
                         smooth=NULL,
                         split_intercept=FALSE,
                         sb_slope=NULL,
+                        sb_slope_c=FALSE,
+                        n_quantile=20,
                         trace=FALSE,
                         ...){
   UseMethod("TSVC")

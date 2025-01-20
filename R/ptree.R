@@ -2,11 +2,20 @@ ptree <- function(info,
                   var_name, 
                   params, 
                   X, 
+                  ellipse_a, 
+                  ellipse_b, 
+                  ellipse_x,
+                  ellipse_y,
+                  branch_adj,
                   cex.lines, 
                   cex.branches, 
                   cex.coefs, 
                   cex.main, 
-                  title){
+                  cex.numbers, 
+                  draw_numbers, 
+                  title, 
+                  decimals, 
+                  confint){
 
   endnodes      <- list()
   endnodes[[1]] <- 1
@@ -19,6 +28,7 @@ ptree <- function(info,
     endnodes[[j+1]][-c(where,where+1)] <- endnodes[[j]][-where]
   }
   endnodes <- endnodes[[length(endnodes)]]
+  dir      <- sapply(1:length(endnodes), function(j){ifelse(endnodes[j] %in% info[,7], "l","r")})
   
   n_levels <- length(unique(info[,"level"]))
   
@@ -65,19 +75,39 @@ ptree <- function(info,
   title(title,cex.main=cex.main)
   
   # add estimates
-  betas_hat <- format(round(params,3),nsmall=3)
+  betas_hat <- format(round(params,3), nsmall = decimals)
+  if(!is.null(confint)){
+    CI_L_hat <- format(round(confint$CI_L,3), nsmall = decimals)
+    CI_U_hat <- format(round(confint$CI_U,3), nsmall = decimals)
+  }
   points_betas <- unique(hilfspunkte[[n_levels+1]])
   points_betas[,2] <- points_betas[,2]-0.2
   for(i in 1:length(betas_hat)){
-    draw.ellipse(x=points_betas[i,1],y=points_betas[i,2],a=0.8,b=0.2,lwd=cex.lines,col=grey(0.8))
+    if(dir[i]=="l"){
+      fac <- -1
+    } else{
+      fac <- 1
+    }
+    draw.ellipse(x=points_betas[i,1]+fac*ellipse_x,y=points_betas[i,2]-ellipse_y,a=ellipse_a,b=ellipse_b,lwd=cex.lines,col=grey(0.8))
+    if(!is.null(confint)){
+      text(points_betas[i,1]+fac*ellipse_x,points_betas[i,2]-ellipse_y,
+           bquote(atop(.(betas_hat[i]), "["*.(CI_L_hat[i])~"\U2012"~.(CI_U_hat[i])*"]")),cex=cex.coefs)
+    } else{
+      text(points_betas[i,1]+fac*ellipse_x,points_betas[i,2]-ellipse_y,betas_hat[i],cex=cex.coefs)
+    }
   }
-  text(points_betas[,1],points_betas[,2],betas_hat,cex=cex.coefs)
   
   # add numbers
-  points_betas[,2] <- points_betas[,2]+0.2
-  for(i in 1:length(betas_hat)){
-    rect(points_betas[i,1]-0.25,points_betas[i,2]-0.1,points_betas[i,1]+0.25,points_betas[i,2]+0.1,col=grey(0.9),lwd=cex.branches)
-    text(points_betas[i,1],points_betas[i,2],endnodes[i],cex=cex.branches)
+  if(draw_numbers){
+    for(i in 1:length(betas_hat)){
+      if(dir[i]=="l"){
+        fac <- -1
+      } else{
+        fac <- 1
+      }
+      rect(points_betas[i,1]+fac*ellipse_x-max(0.2,ellipse_x/3),points_betas[i,2]+ellipse_b-max(0.05,ellipse_b/3),points_betas[i,1]+fac*ellipse_x+max(0.2,ellipse_x/3),points_betas[i,2]+ellipse_b+max(0.05,ellipse_b/3),col=grey(0.9),lwd=cex.numbers)
+      text(points_betas[i,1]+fac*ellipse_x,points_betas[i,2]+ellipse_b,endnodes[i],cex=cex.numbers)
+    }
   }
   
   # add labels  
@@ -85,8 +115,8 @@ ptree <- function(info,
     help4 <- split(help3,rep(1:2^(info[i,"level"]-1),each=2^n_levels/2^(info[i,"level"]-1)))[[info[i,"node"]]]
     point_var <- unique(hilfspunkte[[info[i,"level"]]][help4,])
     points(point_var[1],point_var[2],cex=cex.lines-1,pch=19)
-    point_left  <- c(point_var[1]-steps[info[i,"level"]],point_var[2]-0.5)
-    point_right <- c(point_var[1]+steps[info[i,"level"]],point_var[2]-0.5)
+    point_left  <- c(point_var[1]-steps[info[i,"level"]]-branch_adj,point_var[2]-0.5)
+    point_right <- c(point_var[1]+steps[info[i,"level"]]+branch_adj,point_var[2]-0.5)
     var   <- info[i,"effect_modifier"]
     thres <- info[i,"threshold"]
     sort_values <- unique(sort(X[,var]))

@@ -9,12 +9,15 @@ effmodTree  <- function(y,
                         splits_max,
                         perm_test,
                         test_linear,
+                        gpd_approx, 
                         effmod,
                         notmod, 
                         exclude,
                         smooth,
                         split_intercept,
                         sb_slope,
+                        sb_slope_c,
+                        n_quantile,
                         trace, 
                         ...){
   
@@ -28,7 +31,7 @@ effmodTree  <- function(y,
   }
   
   mc   <- as.list(match.call(expand.dots=TRUE))
-  mcs  <- paste0(names(mc),"=",mc)[-c(1:19)]
+  mcs  <- paste0(names(mc),"=",mc)[-c(1:22)]
   mcs  <- ifelse(length(mcs)==0, "", paste0(",", paste0(mcs, collapse=",")))
     
   if(!is.null(names(DM_kov))){
@@ -37,9 +40,9 @@ effmodTree  <- function(y,
     var_names <- paste0("x",1:nvar)
   }
   
-  ordered_values <- lapply(DM_kov,ord_values)
-  n_levels       <- sapply(ordered_values,length)
-  thresholds     <- lapply(ordered_values,thresh)
+  ordered_values <- lapply(DM_kov, ord_values, n_quantile=n_quantile)
+  n_levels       <- sapply(ordered_values, length)
+  thresholds     <- lapply(ordered_values, thresh)
   n_s            <- n_levels-1
 
   mod_potential <- list()
@@ -186,25 +189,67 @@ effmodTree  <- function(y,
     anysplit <- !all(is.na(unlist(splits_evtl[[count]])))
 
     if(anysplit){
+      
       # estimate all models 
-      dv <- lapply(1:nvar,function(var) {
-              if(length(var_list[[var]])>0){
-                ret <- lapply(var_list[[var]],function(i) {
-                        n_knots   <- length(params[[count]][[var]])
-                        deviances <- matrix(rep(0,n_s[i]*n_knots),ncol=n_knots)
-                        if(!(var==nvar & i%in%int_del & !split_in_int)){ 
-                          for(kn in 1:n_knots){
-                            deviances[,kn] <- allmodels(var,i,kn,count,design_lower,design_upper,splits_evtl,params,dat0,mod0,n_s,var_names,smooth,split_intercept,family,start,mcs)
+      if(!is.null(sb_slope) && sb_slope_c){ # special case for effect selection
+        perm_test <- FALSE
+        test_linear <- FALSE
+        dv <- lapply(1:nvar,function(var) {
+                if(length(var_list[[var]])>0){
+                    ret <- lapply(var_list[[var]],function(i) {
+                           n_knots   <- 1
+                           deviances <- matrix(rep(0,n_s[i]*n_knots),ncol=n_knots)
+                           splits_aktuell <- splits_evtl[[count]][[var]][[i]][1,]
+                           splits_aktuell <- splits_aktuell[!is.na(splits_aktuell)]
+                           if(length(splits_aktuell)>0){
+                             for(j in splits_aktuell){
+                               datj   <- data.frame(dat0,design_upper[[var]][[i]][,j,drop=FALSE])
+                               
+                               help1 <- paste0("I(",var_names[var],"-",thresholds[[i]][j],")")
+                               help2 <- paste0(unlist(params[[count]])[-which(unlist(params[[count]])==var_names[var])],collapse="+")
+                               help3 <- c(var_names[var], paste(help1,colnames(design_upper[[var]][[i]])[j],sep=":"))
+                               help4 <- paste(c(help2,help3),collapse="+")
+                               help5 <- formula(paste("y~",help4, ifelse(split_intercept,"-1","")))
+                               
+                               if(is.null(smooth)){
+                                 mod   <- glm(help5,family=family,data=datj,etastart=start)
+                               } else{
+                                 help00 <- paste0("s(", var_names[smooth], ", bs='ps'", mcs, ")", collapse="+")
+                                 help5  <- formula(paste("y~", help4, "+", help00, ifelse(split_intercept,"-1","")))
+                                 mod    <- gam(help5,family=family,data=datj,etastart=start)
+                               }
+                               deviances[j,1] <- deviance(mod0)-deviance(mod)
+                             }
+                           }
+                           return(deviances)
+                    })
+                    names(ret) <- var_list[[var]]
+                } else{
+                  ret <- 0 
+                }
+                return(ret)
+              })
+        
+      } else{
+        dv <- lapply(1:nvar,function(var) {
+                if(length(var_list[[var]])>0){
+                  ret <- lapply(var_list[[var]],function(i) {
+                          n_knots   <- length(params[[count]][[var]])
+                          deviances <- matrix(rep(0,n_s[i]*n_knots),ncol=n_knots)
+                          if(!(var==nvar & i%in%int_del & !split_in_int)){ 
+                            for(kn in 1:n_knots){
+                              deviances[,kn] <- allmodels(var,i,kn,count,design_lower,design_upper,splits_evtl,params,dat0,mod0,n_s,var_names,smooth,split_intercept,family,start,mcs)
+                            }
                           }
-                        }
-                        return(deviances)
-                })
-                names(ret) <- var_list[[var]]
-              } else{
-                ret <- 0 
-              }
-              return(ret)
-            })
+                          return(deviances)
+                  })
+                  names(ret) <- var_list[[var]]
+                } else{
+                  ret <- 0 
+                }
+                return(ret)
+              })
+      }
       
       if(max(unlist(dv))>0){
       
@@ -227,6 +272,10 @@ effmodTree  <- function(y,
         
         param_new   <- paste(param_old,c(colnames(design_lower[[variable]][[split_variable]])[split],colnames(design_upper[[variable]][[split_variable]])[split]),sep=":")
         
+        if(!is.null(sb_slope) && sb_slope_c){ # special case for effect selection
+          help1 <- paste0("I(",var_names[variable],"-",thresholds[[split_variable]][split],")")
+          param_new   <- c(param_old, paste(help1,colnames(design_upper[[variable]][[split_variable]])[split],sep=":"))
+        }
         
         # compute permutation test 
         if(perm_test){
@@ -242,22 +291,57 @@ effmodTree  <- function(y,
           
           # test decision 
           adaption <- sum(!is.na(vars_evtl[[count]][[variable]][knoten,]))
-          crit_val <- quantile(dev,1-(alpha/adaption))
           Tj       <- max(dv[[variable]][[split_variable]])
-          proof    <- Tj > crit_val
+          
+          if(!gpd_approx){
+            crit_val <- quantile(dev,1-(alpha/adaption))
+            pval     <- sum(dev>Tj)/nperm
+            proof    <- Tj > crit_val
+          } else{
+            if(sum(dev>Tj)>=10){
+              crit_val <- quantile(dev,1-(alpha/adaption))
+              pval     <- sum(dev>Tj)/nperm
+              proof    <- Tj > crit_val
+            } else{
+              nexc <- nperm/4
+              sort_dev <- sort(dev, decreasing=T)
+              thres_dev <- (sort_dev[nexc]+sort_dev[nexc+1])/2
+              devstar <- sort_dev[1:nexc]
+              fit <- VGAM::vglm(devstar~1, VGAM::gpd(threshold=thres_dev))
+              crit_val <- VGAM::qgpd(1-(alpha/adaption), location=thres_dev, scale=VGAM::Coef(fit)[1], shape=VGAM::Coef(fit)[2])
+              pval     <- as.numeric(nexc/nperm*(1-VGAM::pgpd(Tj, thres_dev, VGAM::Coef(fit)[1], VGAM::Coef(fit)[2])))
+              proof    <- Tj > crit_val
+            }
+          }
           devs[count]    <- Tj
-          crits[count]    <- crit_val
-          pvalues[count] <- sum(dev>Tj)/nperm
+          crits[count]   <- crit_val
+          pvalues[count] <- pval  
         } else{
           proof <- TRUE
         }
         
         if(proof){
           
-          # fit new model 
-          mod0  <- mod_potential[[count+1]] <- one_model(variable,split_variable,knoten,count,split,design_lower,design_upper,params,dat0,var_names,smooth,split_intercept,family,start,mcs)
-          dat0  <- data.frame(dat0,design_lower[[variable]][[split_variable]][,split,drop=FALSE],design_upper[[variable]][[split_variable]][,split,drop=FALSE])
-          start <- predict(mod0)
+          if(!is.null(sb_slope) && sb_slope_c){ # special case for effect selection
+            datj <- dat0 <- data.frame(dat0,design_upper[[variable]][[split_variable]][,split,drop=FALSE])
+            help2 <- paste0(unlist(params[[count]])[-which(unlist(params[[count]])==var_names[variable])],collapse="+")
+            help4 <- paste(c(help2, param_new),collapse="+")
+            help5 <- formula(paste("y~",help4, ifelse(split_intercept,"-1","")))
+            
+            if(is.null(smooth)){
+              mod0  <- mod_potential[[count+1]] <- glm(help5,family=family,data=datj,etastart=start)
+            } else{
+              help00 <- paste0("s(", var_names[smooth], ", bs='ps'", mcs, ")", collapse="+")
+              help5  <- formula(paste("y~", help4, "+", help00, ifelse(split_intercept,"-1","")))
+              mod0  <- mod_potential[[count+1]] <- gam(help5,family=family,data=datj,etastart=start)
+              start <- predict(mod0)
+            }
+          } else{
+            # fit new model 
+            mod0  <- mod_potential[[count+1]] <- one_model(variable,split_variable,knoten,count,split,design_lower,design_upper,params,dat0,var_names,smooth,split_intercept,family,start,mcs)
+            dat0  <- data.frame(dat0,design_lower[[variable]][[split_variable]][,split,drop=FALSE],design_upper[[variable]][[split_variable]][,split,drop=FALSE])
+            start <- predict(mod0)
+          }
           
           # adjust knoten 
           if(level>1){
@@ -363,7 +447,9 @@ effmodTree  <- function(y,
       }
     }
   }
-  mod_potential <- check_names_list(mod_potential, params)
+  if(!sb_slope_c){
+    mod_potential <- check_names_list(mod_potential, params)
+  }
 
   ################################################################################### 
   mod_opt     <- mod_potential[[count]]
@@ -385,7 +471,7 @@ effmodTree  <- function(y,
     not_inmodel <- not_inmodel[!not_inmodel==nvar]
   }
   
-  if(test_linear){
+  if(perm_test && test_linear){
     # permutations test for linear terms 
     not_sig <- logical(length(not_inmodel))
     done    <- FALSE

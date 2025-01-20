@@ -78,7 +78,8 @@ predict.TSVC  <- function(object,
     } else{
       var_names <- paste0("x",1:nvar)
     }
-    ordered_values <- lapply(DM_kov,ord_values)
+    n_quantile     <- ifelse(is.null(object$call$n_quantile), 20, object$call$n_quantile)
+    ordered_values <- lapply(DM_kov, ord_values, n_quantile = n_quantile)
     n_levels       <- sapply(ordered_values,length)
     thresholds     <- lapply(ordered_values,thresh)
     var_list       <- attributes(object)$vl
